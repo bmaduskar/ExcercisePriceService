@@ -6,10 +6,10 @@ import java.util.List;
 
 import mytrader.execution.ExecutionService;
 import mytrader.execution.ExecutionServiceImpl;
-import mytrader.model.Security;
-import mytrader.price.PriceSourceImpl;
-import mytrader.price.PriceSourceRunnable;
+import mytrader.model.TradeSecurity;
 import mytrader.price.PriceListenerImplBuy;
+import mytrader.price.PriceSource;
+import mytrader.price.PriceSourceImpl;
 
 /**
  * <pre>
@@ -21,44 +21,41 @@ import mytrader.price.PriceListenerImplBuy;
 public class TradingStrategy {
 
   private final ExecutionService equityExecutionService;
-  private final PriceSourceRunnable priceSource;
+  private final PriceSource priceSource;
 
   
   
-  public TradingStrategy(ExecutionService equityExecutionService, PriceSourceRunnable priceSource) {
+  public TradingStrategy(ExecutionService equityExecutionService, PriceSource priceSource) {
 	super();
 	this.equityExecutionService = equityExecutionService;
 	this.priceSource = priceSource;
+	this.priceSource.populateDB();
 }
 
 public ExecutionService getEquityExecutionService() {
 	return equityExecutionService;
 }
 
-public PriceSourceRunnable getPriceSource() {
+public PriceSource getPriceSource() {
 	return priceSource;
 }
 
-public void autoBuy(List<Security> request) throws InterruptedException {
-
-    request.stream().map(
-        r -> new PriceListenerImplBuy(r.getSecurity(), r.getPriceThreshold(), r.getVolume(),
-        		equityExecutionService, false)).forEach(priceSource::addPriceListener);
-    Thread thread = new Thread(priceSource);
-    thread.start();
-    thread.join();
-    request.stream().map(
-        r -> new PriceListenerImplBuy(r.getSecurity(), r.getPriceThreshold(), r.getVolume(),
-        		equityExecutionService, false)).forEach(priceSource::removePriceListener);
+public void autoBuy(List<TradeSecurity> request) throws InterruptedException {
+	request.stream().map(r -> new PriceListenerImplBuy(r,equityExecutionService,false))
+    	.forEach(priceSource::addPriceListener);
+    priceSource.tradeStock();
+    request.stream().map(r -> new PriceListenerImplBuy(r,equityExecutionService,false))
+    .forEach(priceSource::removePriceListener); 
   }
 
   //This is a demo test
   public static void main(String[] args) throws InterruptedException {
-    TradingStrategy tradingStrategy = new TradingStrategy(new ExecutionServiceImpl(),
+	  System.out.println("Going to check for prices in program");
+	TradingStrategy tradingStrategy = new TradingStrategy(new ExecutionServiceImpl(),
         new PriceSourceImpl());
-    final Security ibm = new Security("IBM",100.00,12);
+    final TradeSecurity ibm = new TradeSecurity("IBM",100.00,12);
         
-    final Security google = new Security("APPLE",120.00,18); 
+    final TradeSecurity google = new TradeSecurity("APPLE",120.00,18); 
     tradingStrategy.autoBuy(asList(ibm, google));
   }
 }
